@@ -11,6 +11,7 @@ func main() {
 	fmt.Printf("welcome\n if you want connect database please type connectDB")
 	if Question(""){
 		fmt.Printf("hello, world\nselect DB name")
+		// DB選択
 		DBname := inputData()
 		db, err := sql.Open("mysql", "root:J02M05A004@tcp(127.0.0.1:13306)/" + DBname)
 		if err != nil {
@@ -56,7 +57,6 @@ func main() {
 		}
 	}
 }
-
 
 func Question(q string) bool {
 	result := true
