@@ -8,9 +8,10 @@ import ("fmt"
 	)
 
 func main() {
-	fmt.Printf("welcome\n if you want connect database please type connectDB")
+	fmt.Printf("welcome if you want connect database please type connectDB")
 	if Question(""){
-		fmt.Printf("hello, world\nselect DB name")
+		fmt.Printf("type DBname")
+
 		// DB選択
 		DBname := inputData()
 		db, err := sql.Open("mysql", "root:J02M05A004@tcp(127.0.0.1:13306)/" + DBname)
@@ -18,20 +19,31 @@ func main() {
 			panic(err.Error())
 		}
 
+		// 遅延処理。一番最後に呼ばれる
 		defer db.Close()
 
+		// breakするまでDBにインサートする処理
 		for{
 			fmt.Printf("input any name")
 			data := inputData()
-			stmt, err := db.Prepare(fmt.Sprintf("INSERT INTO sample (name) VALUES (?)"))
-			res, err := stmt.Exec(data)
-			lastId, err := res.LastInsertId()
-			rowCnt, err := res.RowsAffected()
+			if data != ""{
+			// err でエラーハンドリングの返り値
+				stmt, err := db.Prepare(fmt.Sprintf("INSERT INTO sample (name) VALUES (?)"))
+				res, err := stmt.Exec(data)
+				lastId, err := res.LastInsertId()
+				rowCnt, err := res.RowsAffected()
 
-			fmt.Printf("ID = %d, affected = %d\n", lastId, rowCnt)
+				if err != nil {
+					panic(err.Error())
+				}
+
+				fmt.Printf("ID = %d, affected = %d\n", lastId, rowCnt)
+			}
 
 			rows, err := db.Query("SELECT * FROM sample")
 			defer rows.Close()
+
+			// errがnilじゃない場合エラーハンドリング
 			if err != nil {
 				panic(err.Error())
 			}
@@ -47,6 +59,7 @@ func main() {
 
 			fmt.Printf("successfully\n")
 
+			// データベースにインサートの継続確認
 			if Question("connectDB or disconnect"){
 				continue;
 			}else{
