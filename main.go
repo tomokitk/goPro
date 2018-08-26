@@ -49,12 +49,19 @@ func main() {
         for _, event := range events {
             // event setting
             if event.Type == linebot.EventTypeMessage {
-                switch message := event.Message.(type) {
+                switch message := event.Message.(type){
                 // メッセージがText stringで入ってくる場合
                 case *linebot.TextMessage:
                     // DO. で　http.Response型のポインタ（とerror）が返ってくる
-                    if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text)).Do(); err != nil {
-                        log.Print(err)
+                    // ReplyMessage関数呼ぶ
+                    if message.Text == "綺麗系が好き"{
+                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text + "\n おゆみちゃんはどうですか？\n\n"+"https://www.instagram.com/youme_mlk/?hl=ja")).Do(); err != nil {
+                            log.Print(err)
+                        }
+                    }else{
+                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("まだリコメンドできないよぅううう")).Do(); err != nil {
+                            log.Print(err)
+                        }
                     }
                 }
             }
