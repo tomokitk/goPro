@@ -9,9 +9,16 @@ import (
     "fmt"
 	"github.com/gin-gonic/gin"
     "github.com/line/line-bot-sdk-go/linebot"  // ① SDKを追加
-    // "database/sql"
-	// 	_ "github.com/go-sql-driver/mysql"
+    "database/sql"
+		_ "github.com/go-sql-driver/mysql"
 )
+
+// Cute構造体
+type Cute struct {
+    id        int
+    name      string
+    url       string
+}
 
 func main() {
 	// 環境変数取得　heroku config:setで設定済み
@@ -21,10 +28,13 @@ func main() {
         log.Fatal("$PORT must be set")
     }
 
-    // db, err := sql.Open("mysql", "root:J02M05A004@tcp(127.0.0.1:13306)/gosample" )
-	// if err != nil {
-    //     log.Fatal("DB is not valid")
-    // }
+    db, err := sql.Open("mysql", "bfccbf8ad2f3fd:da1ad3db@tcp(us-cdbr-iron-east-01.cleardb.net:3306)/heroku_2178104d727ee3e")
+	if err != nil {
+        log.Fatal("DB is not valid")
+    }
+    defer db.Close()
+
+    fmt.Println("DB接続完了")
     // ② LINE bot instanceの作成
     bot, err := linebot.New(
         os.Getenv("CHANNEL_SECRET"),
@@ -63,46 +73,58 @@ func main() {
                 case *linebot.TextMessage:
                     // DO. で　http.Response型のポインタ（とerror）が返ってくる
                     // ReplyMessage関数呼ぶ
-                    if message.Text == "綺麗系が好き"{
 
-                        beatifulMap := map[int]string{
-                            0:"\n 貴島明日香ちゃんはどうですか？\n\n"+"https://www.instagram.com/asuka_kijima/?hl=ja",
-                            1: "\n おゆみちゃんはどうですか？\n\n"+"https://www.instagram.com/youme_mlk/?hl=ja",
-                            2: "\n あやプーさんはどうですか？\n\n"+"https://www.instagram.com/ayapooh_22/?hl=ja",
-                            3: "\n yuu__aaaちゃんはどうですか？\n\n"+"https://www.instagram.com/yuu__aaa/?hl=ja",
-                        }
-
-                        index := choice(beatifulMap)
-
-                        theBeautiful := beatifulMap[index]
-
-
-                        // db, err := sql.Open("mysql", "root:J02M05A004@tcp(127.0.0.1:13306)/gosample" )
-
-                        // if err != nil {
-                        //     fmt.Println("DB接続エラー")
-                        //     log.Fatal(err)
-                        // }
-                        // rows, err := db.Query("SELECT id, name FROM sample")
-                        // if err != nil {
-                        //     fmt.Println("DBquery")
-                        //     log.Fatal(err)
-                        // }
-
-                        // for rows.Next() {
-                        //     var id int
-                        //     var name string
-                        //     if err := rows.Scan(&id, &name); err != nil {
-                        //         log.Fatal("Data is not correct")
-                        //     }
-                        //     fmt.Println(id, name)
-                        // }
-                        // fmt.Println(rows)
-                        // db.Close()
-
-                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(theBeautiful)).Do(); err != nil {
+                    if message.Text == "かわいい"{
+                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("性別を教えてね！(男・女　を入力！)")).Do(); err != nil {
                             log.Print(err)
                         }
+                    }
+
+
+
+                    if message.Text == "綺麗系が好き"{
+                        rows, err := db.Query("SELECT * FROM cute")
+                        if err != nil {
+                            fmt.Println("DBquery")
+                            log.Fatal(err)
+                        }
+                        fmt.Println("クエリ取ってくる")
+
+                        //  rowsを文字列に成形
+                        cute := make([]Cute, 0)
+
+                        for rows.Next() {
+                            c := Cute{}
+                            // var id int
+                            // var name string
+                            // var url string
+                            if err := rows.Scan(&c.id, &c.name, &c.url); err != nil {
+                                log.Fatal("Data is not correct")
+                            }
+                            cute = append(cute, c)
+                            // fmt.Println(id, name)
+                        }
+                        // fmt.Println(len(cute))
+                        rand.Seed(time.Now().UnixNano())
+                        index := rand.Intn(len(cute))
+
+                        theCute := cute[index]
+
+                        fmt.Println(index)
+                        fmt.Println(theCute.url)
+                        fmt.Println(theCute.name)
+
+
+
+                        // db.Close()
+
+                            // /var cuteName string = name
+                            // fmt.Println(cuteName)
+                            if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(theCute.name + "さんはどうですか？\n" + theCute.url)).Do(); err != nil {
+                                log.Print(err)
+                            }
+
+
                     }else{
                         if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("https://www.instagram.com/kuriokan/")).Do(); err != nil {
                             log.Print(err)
@@ -123,5 +145,4 @@ func choice(beatiful map[int]string) int {
     // 乱数確認ログ
     fmt.Println(i)
     return i
-
 }
