@@ -28,7 +28,7 @@ func main() {
         log.Fatal("$PORT must be set")
     }
 
-    db, err := sql.Open("mysql", "bfccbf8ad2f3fd:da1ad3db@tcp(us-cdbr-iron-east-01.cleardb.net:3306)/heroku_2178104d727ee3e")
+    db, err := sql.Open("mysql", "username:pass@tcp(us-cdbr-iron-east-01.cleardb.net:3306)/heroku_2178104d727ee3e")
 	if err != nil {
         log.Fatal("DB is not valid")
     }
