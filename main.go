@@ -514,13 +514,6 @@ func main() {
 // リッチメニュー　
 func setRichmenu() string {
 
-    // url := 'https://api.line.me/v2/bot/richmenu
-
-    // curl -v -X
-    // POST url \
-    // -H 'Authorization: Bearer llhsaIWq5tmnLLC4lZDhy5vUsC1exGE4yLiT6B76s1smhq0Y0VaZxEbFKj75980kLLz7NitU7faB8irdLtz1nkS6z0qDwv5zykegOPDduNg9mK0LUiZuc8Tuirt0V0jZV3eTSwKqj57qlO4Pwc1jvwdB04t89/1O/w1cDnyilFU=' \
-    // -H 'Content-Type: application/json' \
-    // -d
     bot, err := linebot.New(
         os.Getenv("CHANNEL_SECRET"),
         os.Getenv("CHANNEL_TOKEN"),
