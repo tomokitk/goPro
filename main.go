@@ -7,10 +7,8 @@ import (
     "net/http"
     "os"
     "fmt"
-    // "flag"
 	"github.com/gin-gonic/gin"
     "github.com/line/line-bot-sdk-go/linebot"  // ① SDKを追加
-
     "database/sql"
 		_ "github.com/go-sql-driver/mysql"
 )
@@ -33,17 +31,33 @@ type Beautiful struct {
     picture_id int
 }
 
-// ユーザーログ構造体
-type userlogs struct {
+// 綺麗系構造体
+type Cool struct {
     id        int
+    name      string
+    url       string
+    pic_path  string
+    picture_id int
+}
+
+// 綺麗系構造体
+type Lovely struct {
+    id        int
+    name      string
+    url       string
+    pic_path  string
+    picture_id int
+}
+
+// ユーザーログ構造体
+type userLogs struct {
+    id        int
+    gender    int
     userID    string
     state     int
     log1      int
     finish    int
 }
-
-
-
 
 func main() {
 	// 環境変数取得　heroku config:setで設定済み
@@ -58,6 +72,7 @@ func main() {
         log.Fatal("DB is not valid")
     }
     defer db.Close()
+    log.Print(db)
 
     fmt.Println("DB接続完了")
     // ② LINE bot instanceの作成
@@ -72,6 +87,8 @@ func main() {
     router.Use(gin.Logger())
     router.LoadHTMLGlob("templates/*.tmpl.html")
     router.Static("/static", "static")
+
+
     router.GET("/", func(c *gin.Context) {
         c.HTML(http.StatusOK, "index.tmpl.html", nil)
     })
@@ -87,66 +104,156 @@ func main() {
             return
         }
 
+        for _, event := range events {
         // todo  リッチメニューあとで
-        // R := setRichmenu()
-        // fmt.Println(R)
+        userID := event.Source.UserID
+        var R string = setRichmenu()
+        fmt.Println(R)
 
-        // var filePath = flag.String("./top.png", "", "path to image, used in upload/download mode")
-        // var rid  = flag.String(R, "", "richmenu id")
+        var filePath string = "./top.png"
+        var rid  string = R
 
-        // // fmt.Println(U)
-        // if _, err = bot.UploadRichMenuImage(*rid, *filePath).Do(); err != nil {
-		// 	log.Fatal(err)
-		// }
+        // /U := "/Users/kuriokatomomi/go/src/github.com/heroku/go-getting-started/top.png"
+        // fmt.Println(U)
+        fmt.Println(rid)
+        fmt.Println("パース通過")
+        fmt.Println(filePath)
 
-        // if _, err = bot.LinkUserRichMenu("", *rid).Do(); err != nil {
+        if _, err = bot.UploadRichMenuImage(rid, filePath).Do(); err != nil {
+			log.Fatal(err)
+        }
+
+        fmt.Println("filepath通過")
+
+        fmt.Println("getRichMenu")
+        if _, err = bot.GetRichMenu(rid).Do(); err != nil {
+			log.Fatal(err)
+        }
+        fmt.Println("gotRichMenu")
+
+
+        fmt.Println(userID)
+        fmt.Println(rid)
+
+        if _, err = bot.LinkUserRichMenu(userID, rid).Do(); err != nil {
+			log.Fatal(err)
+        }
+        fmt.Println("PreviewRichMenu")
+        // if _, err = bot.LinkUserRichMenu("Ucbc84552b616bccf726859cd416548d9", *rid).Do(); err != nil {
 		// 	log.Fatal(err)
         // }
 
-
-
-
         // event にはidexが入るので、値は_に詰める
 
-        for _, event := range events {
+        // for _, event := range events {
             // user_id　取得
 
-            userID := event.Source.UserID
-            state :=1
+            // userID := event.Source.UserID
+            var state int =1
 
-            stmtIns, err := db.Prepare(fmt.Sprintf("INSERT INTO userlogs(userID,state) VALUES (?, ?)"))
+            sum :=0
+            sum += 0
+            fmt.Println(sum)
+
+            rows, err := db.Query("SELECT COUNT(*) as count  FROM userlogs WHERE userID = ?", userID)
             if err != nil {
                 log.Fatal(err)
             }
-            defer stmtIns.Close() // Close the statement when we leave main() / the program terminates
+            defer rows.Close()
+            var checkCount int = checkCount(rows)
+            fmt.Println(checkCount)
 
-            fmt.Println(userID)
+            if checkCount < 1 {
+                stmtIns, err := db.Prepare(fmt.Sprintf("INSERT INTO userlogs(userID,state) VALUES (?, ?)"))
+                if err != nil {
+                    log.Fatal(err)
+                }
+                defer stmtIns.Close() // Close the statement when we leave main() / the program terminates
+                _, err = stmtIns.Exec(userID, state)
 
-            _, err = stmtIns.Exec(userID, state)
+                fmt.Println("insert fin")
+            }
 
-            fmt.Println("insert fin")
+
+
 
             // event setting
             if event.Type == linebot.EventTypeMessage {
                 switch message := event.Message.(type){
                 // メッセージがText stringで入ってくる場合
                 case *linebot.TextMessage:
+                    if message.Text == "START" && checkCount < 1  {
+                        template := linebot.NewConfirmTemplate(
+                                "性別を選択",
+                                linebot.NewMessageAction("女性", "女性"),
+                                linebot.NewMessageAction("男性", "男性"),
+                        )
+
+                        if _, err := bot.ReplyMessage(
+                            event.ReplyToken,
+                            linebot.NewTemplateMessage("Confirm alt text", template),
+                        ).Do(); err != nil {
+                            log.Print(err)
+                        }
+                    }
 
                     // DO. で　http.Response型のポインタ（とerror）が返ってくる
                     // ReplyMessage関数呼ぶ
-                    if message.Text == "こんにちは" {
-                        beautyImage := "https://www.vivi.tv/uploads/images/20171004141324_glmjrivv6crr95qhalek0usn45_main_yoshioka.jpg"
-                        cuteImage :="https://www.cinemacafe.net/imgs/thumb_h1/58888.jpg"
+                    if message.Text == "女性" || message.Text == "男性" || message.Text == "START" {
+
+                        if (message.Text == "女性") {
+                            stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET gender = 1 WHERE (userID = ?)"))
+                            _, err = stmtIns.Exec(userID)
+                            if err != nil {
+                                log.Print(err)
+                            }
+                            defer stmtIns.Close()
+
+                        }else if(message.Text == "男性"){
+                            stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET gender = 2 WHERE (userID = ?)"))
+                            _, err = stmtIns.Exec(userID)
+                            if err != nil {
+                                log.Print(err)
+                            }
+                            defer stmtIns.Close()
+                        }else{
+                            fmt.Println("start")
+                            stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = 0, finish = 0 WHERE (userID = ?)"))
+                            _, err = stmtIns.Exec(userID)
+                            if err != nil {
+                                log.Print(err)
+                            }
+                            defer stmtIns.Close()
+                        }
+
+                        // 凛
+                        beautyImage := "https://www.yutori528.com/wp-content/uploads/2017/11/AS20150720002647_comm.jpg"
+                        // 艶
+                        cuteImage :="https://www.yutori528.com/wp-content/uploads/2018/05/1-3.jpg"
+                        // 萌
+                        lovelyImage :="https://www.asahicom.jp/articles/images/AS20171226001781_comm.jpg"
+                        // 清
+                        coolImage :="https://www.lespros.co.jp/files/talent/4/profile.jpg"
 
                         template := linebot.NewCarouselTemplate(
                             linebot.NewCarouselColumn(
-                                cuteImage, "可愛い系", "好きならタップ↓↓↓!!",
-                                linebot.NewMessageAction("可愛い系", "可愛い系"),
+                                beautyImage, "凛", "好きならタップ↓↓↓!!",
+                                linebot.NewMessageAction("凛", "凛"),
                             ),
 
                             linebot.NewCarouselColumn(
-                                beautyImage, "綺麗系", "好きならタップ↓↓↓!!",
-                                linebot.NewMessageAction("綺麗系", "綺麗系"),
+                                cuteImage, "艶", "好きならタップ↓↓↓!!",
+                                linebot.NewMessageAction("艶", "艶"),
+                            ),
+
+                            linebot.NewCarouselColumn(
+                                lovelyImage, "萌", "好きならタップ↓↓↓!!",
+                                linebot.NewMessageAction("萌", "萌"),
+                            ),
+
+                            linebot.NewCarouselColumn(
+                                coolImage, "清", "好きならタップ↓↓↓!!",
+                                linebot.NewMessageAction("清", "清"),
                             ),
                         )
 
@@ -158,7 +265,9 @@ func main() {
                         }
                     }
 
-                    if message.Text == "可愛い系"{
+                    // 凛
+
+                    if message.Text == "凛"{
                         rows, err := db.Query("SELECT * FROM cute")
                         if err != nil {
                             log.Fatal(err)
@@ -181,6 +290,16 @@ func main() {
                         fmt.Println(index)
 
                         theCute := cute[index]
+                        // var theCuteId int = theCute.id
+
+                        // fmt.Println(theCuteId)
+
+                        // var cuteCount []int = make([]int, 0)
+                        // cuteCount = append(cuteCount, theCuteId)
+
+                        // fmt.Println(cuteCount)
+
+
 
                         fmt.Println(theCute.url)
                         imagePic := theCute.pic_path
@@ -188,7 +307,7 @@ func main() {
                             linebot.NewCarouselColumn(
                                 imagePic, theCute.name + "さん" , "インスタも見ましょう！",
                                 linebot.NewURIAction("インスタを見る", theCute.url),
-                                linebot.NewMessageAction("他の子も見たい", "可愛い系"),
+                                linebot.NewMessageAction("他の子も見たい", "凛"),
                                 linebot.NewMessageAction("この子がタイプ", "この子がタイプ"),
                             ),
                         )
@@ -208,18 +327,14 @@ func main() {
                         ).Do(); err != nil {
                             log.Print(err)
                         }
-                        // rows, err := db.Query("SELECT * FROM sample")
-                        // stmtIns, err := db.Prepare(fmt.Sprintf("INSERT INTO userlogs(userID,state) VALUES (?, ?)"))
-
                     }
 
 
 
-
-                    if message.Text == "綺麗系"{
+                    // 艶
+                    if message.Text == "艶"{
                         rows, err := db.Query("SELECT * FROM beautiful")
                         if err != nil {
-                            fmt.Println("綺麗系テーブル")
                             log.Fatal(err)
                         }
 
@@ -244,11 +359,19 @@ func main() {
                             linebot.NewCarouselColumn(
                                 imagePic, theBeautiful.name + "さん" , "インスタも見ましょう！",
                                 linebot.NewURIAction("インスタを見る", theBeautiful.url),
-                                linebot.NewMessageAction("他の子も見たい", "綺麗系"),
+                                linebot.NewMessageAction("他の子も見たい", "艶"),
                                 linebot.NewMessageAction("この子がタイプ", "この子がタイプ"),
                             ),
                         )
 
+                        var pictureID int = theBeautiful.picture_id
+                        stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = ? WHERE (userID = ?)"))
+                        _, err = stmtIns.Exec(pictureID, userID)
+                        if err != nil {
+                            log.Print(err)
+                        }
+
+			            defer stmtIns.Close()
                         if _, err := bot.ReplyMessage(
                             event.ReplyToken,
                             linebot.NewTemplateMessage("Carousel alt text", template),
@@ -268,12 +391,115 @@ func main() {
                             log.Print(err)
                         }
 
-			            defer stmtIns.Close()
+                        defer stmtIns.Close()
+                        log.Print(err)
                         break
                     }
 
-                    if message.Text != "こんにちは" || message.Text != "綺麗系" || message.Text != "可愛い系" || message.Text != "この子がタイプ"{
-                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("可愛い系or綺麗系を選んでね")).Do(); err != nil {
+
+
+                    // 萌
+                    if message.Text == "萌"{
+                        rows, err := db.Query("SELECT * FROM lovely")
+                        if err != nil {
+                            log.Fatal(err)
+                        }
+
+                        lovely := make([]Lovely, 0)
+
+                        for rows.Next() {
+                            l := Lovely{}
+                            if err := rows.Scan(&l.id, &l.name, &l.url, &l.pic_path, &l.picture_id); err != nil {
+                                log.Fatal("Data is not correct")
+                            }
+                            lovely = append(lovely, l)
+                        }
+
+                        rand.Seed(time.Now().UnixNano())
+                        index := rand.Intn(len(lovely))
+
+                        theLovely := lovely[index]
+
+                        fmt.Println(theLovely)
+                        imagePic := theLovely.pic_path
+                        template := linebot.NewCarouselTemplate(
+                            linebot.NewCarouselColumn(
+                                imagePic, theLovely.name + "さん" , "インスタも見ましょう！",
+                                linebot.NewURIAction("インスタを見る", theLovely.url),
+                                linebot.NewMessageAction("他の子も見たい", "萌"),
+                                linebot.NewMessageAction("この子がタイプ", "この子がタイプ"),
+                            ),
+                        )
+
+                        var pictureID int = theLovely.picture_id
+                        stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = ? WHERE (userID = ?)"))
+                        _, err = stmtIns.Exec(pictureID, userID)
+                        if err != nil {
+                            log.Print(err)
+                        }
+
+			            defer stmtIns.Close()
+
+                        if _, err := bot.ReplyMessage(
+                            event.ReplyToken,
+                            linebot.NewTemplateMessage("Carousel alt text", template),
+                        ).Do(); err != nil {
+                            log.Print(err)
+                        }
+                    }
+
+
+                    // 清
+                    if message.Text == "清"{
+                        rows, err := db.Query("SELECT * FROM cool")
+                        if err != nil {
+                            log.Fatal(err)
+                        }
+
+                        cool := make([]Cool, 0)
+
+                        for rows.Next() {
+                            c := Cool{}
+                            if err := rows.Scan(&c.id, &c.name, &c.url, &c.pic_path, &c.picture_id); err != nil {
+                                log.Fatal("Data is not correct")
+                            }
+                            cool = append(cool, c)
+                        }
+
+                        rand.Seed(time.Now().UnixNano())
+                        index := rand.Intn(len(cool))
+
+                        theCool := cool[index]
+
+                        fmt.Println(theCool)
+                        imagePic := theCool.pic_path
+                        template := linebot.NewCarouselTemplate(
+                            linebot.NewCarouselColumn(
+                                imagePic, theCool.name + "さん" , "インスタも見ましょう！",
+                                linebot.NewURIAction("インスタを見る", theCool.url),
+                                linebot.NewMessageAction("他の子も見たい", "清"),
+                                linebot.NewMessageAction("この子がタイプ", "この子がタイプ"),
+                            ),
+                        )
+
+                        var pictureID int = theCool.picture_id
+                        stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = ? WHERE (userID = ?)"))
+                        _, err = stmtIns.Exec(pictureID, userID)
+                        if err != nil {
+                            log.Print(err)
+                        }
+
+                        if _, err := bot.ReplyMessage(
+                            event.ReplyToken,
+                            linebot.NewTemplateMessage("Carousel alt text", template),
+                        ).Do(); err != nil {
+                            log.Print(err)
+                        }
+                    }
+
+
+                    if message.Text != "START" || message.Text != "艶" || message.Text != "清" || message.Text != "この子がタイプ" || message.Text != "女性" || message.Text != "男性" || message.Text != "萌" || message.Text != "凛" {
+                        if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("凛・艶・萌・清を選んでね")).Do(); err != nil {
                             log.Print(err)
                         }
                     }
@@ -285,23 +511,16 @@ func main() {
 }
 
 
-
-// // 綺麗系ランダム生成
-// func choice(beatiful map[int]string) int {
-//     // 乱数作成　ここ課題　乱数の作り方
-//     rand.Seed(time.Now().UnixNano())
-//     i := rand.Intn(len(beatiful))
-//     // 乱数確認ログ
-//     fmt.Println(i)
-//     return i
-// }
-
-
-
-
-// リッチメニュー
+// リッチメニュー　
 func setRichmenu() string {
 
+    // url := 'https://api.line.me/v2/bot/richmenu
+
+    // curl -v -X
+    // POST url \
+    // -H 'Authorization: Bearer llhsaIWq5tmnLLC4lZDhy5vUsC1exGE4yLiT6B76s1smhq0Y0VaZxEbFKj75980kLLz7NitU7faB8irdLtz1nkS6z0qDwv5zykegOPDduNg9mK0LUiZuc8Tuirt0V0jZV3eTSwKqj57qlO4Pwc1jvwdB04t89/1O/w1cDnyilFU=' \
+    // -H 'Content-Type: application/json' \
+    // -d
     bot, err := linebot.New(
         os.Getenv("CHANNEL_SECRET"),
         os.Getenv("CHANNEL_TOKEN"),
@@ -311,7 +530,7 @@ func setRichmenu() string {
     }
 
 
-
+// リッチメニューコンテンツ
     richMenu := linebot.RichMenu{
 
         Size: linebot.RichMenuSize{Width: 2500, Height: 1686},
@@ -322,8 +541,10 @@ func setRichmenu() string {
             {
                 Bounds: linebot.RichMenuBounds{X: 0, Y: 0, Width: 1250, Height: 843},
                 Action: linebot.RichMenuAction{
-                    Type: linebot.RichMenuActionTypePostback,
-                    Data: "action=buy&itemid=123",
+                    // Type: linebot.RichMenuActionTypePostback,
+                    // Data: "action=buy&itemid=123",
+                    Type:  "message",
+                    Text: "女性",
                 },
             },
             // {
@@ -366,6 +587,36 @@ func setRichmenu() string {
 //     return result
 // }
 
+// func createDB(message, userID){
+//     if (message.Text == 女性) {
+//         stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = 1 WHERE (userID = ?)"))
+//         _, err = stmtIns.Exec(userID)
+//         if err != nil {
+//             log.Print(err)
+//         }
+//         defer stmtIns.Close()
+
+//     }else{
+//         stmtIns, err := db.Prepare(fmt.Sprintf("UPDATE userlogs SET log1 = 2 WHERE (userID = ?)"))
+//         _, err = stmtIns.Exec(userID)
+//         if err != nil {
+//             log.Print(err)
+//         }
+//         defer stmtIns.Close()
+//     }
+
+// }
+
+func checkCount(rows *sql.Rows) (count int) {
+    for rows.Next() {
+       err:= rows.Scan(&count)
+       if err != nil {
+        log.Println("num of count")
+        log.Fatal(err)
+    }
+   }
+   return count
+}
 
 
 
